@@ -45,8 +45,13 @@ void UpdateDescriptorQueue::Acquire(Scheduler& scheduler, size_t required_entrie
                reserve, frame_payload_size);
     const size_t used = static_cast<size_t>(std::distance(payload_start, payload_cursor));
     if (used + reserve >= frame_payload_size) {
-        LOG_WARNING(Render_Vulkan, "Payload overflow (used={}, reserve={}, capacity={})",
-                    used, reserve, frame_payload_size);
+        // Rate-limited: an overflow storm should not also flood the log from the GPU thread.
+        static size_t overflow_count = 0;
+        if ((overflow_count++ & 0x3F) == 0) {
+            LOG_WARNING(Render_Vulkan,
+                        "Payload overflow (used={}, reserve={}, capacity={}, total={})", used,
+                        reserve, frame_payload_size, overflow_count);
+        }
         scheduler.WaitWorker();
         payload_cursor = payload_start;
     }

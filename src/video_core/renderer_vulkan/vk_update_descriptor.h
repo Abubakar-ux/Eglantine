@@ -41,7 +41,12 @@ class UpdateDescriptorQueue final {
     static constexpr size_t FRAMES_IN_FLIGHT = 8;
 
 public:
-    static constexpr size_t GUEST_FRAME_PAYLOAD_SIZE = 0x80000;
+    // Switch 2 titles (e.g. Fire Emblem: Fortune's Weave battles) write more than 0x80000
+    // descriptor entries in a single frame. Each overflow forces Acquire() to WaitWorker(),
+    // serialising the GPU thread with the Vulkan worker once per frame (~14 fps in battles).
+    // 0x180000 entries (24 bytes each, x FRAMES_IN_FLIGHT) is ~288 MiB of address space,
+    // of which only the touched part becomes resident.
+    static constexpr size_t GUEST_FRAME_PAYLOAD_SIZE = 0x180000;
     static constexpr size_t COMPUTE_FRAME_PAYLOAD_SIZE = 0x20000;
 
     explicit UpdateDescriptorQueue(const Device& device_, size_t frame_payload_size_,

@@ -64,11 +64,12 @@ inline constexpr std::array<const char*, static_cast<size_t>(Zone::Count)> zone_
     "fence skipped", "method", "split drain", "split wait",
 };
 
-// Read once at startup: Enabled() runs several times per method write (no guard to check).
-inline const bool g_enabled = std::getenv("EDEN_NX2_GPU_PROFILE") != nullptr;
-
+// Read once, on first use: Enabled() runs several times per method write. Not at static
+// initialisation, which runs before main() loads nx2_switches.txt into the environment (so the
+// switch could only be set from a real environment variable).
 inline bool Enabled() {
-    return g_enabled;
+    static const bool enabled = std::getenv("EDEN_NX2_GPU_PROFILE") != nullptr;
+    return enabled;
 }
 
 // Nanoseconds; from the host's own counter where the wall clock reads it directly (the zones

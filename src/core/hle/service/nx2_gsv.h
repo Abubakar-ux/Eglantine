@@ -1735,15 +1735,20 @@ private:
         // previous frame's fence instead and let the game prepare frame N+1 meanwhile (waiting
         // for this frame there cost 8-56 ms of every 34-105 ms frame, or never finished).
         // EDEN_NX2_FRAMES_AHEAD=1 always waits for the previous frame, =0 always for this one.
+        // =2 is =1 without the extra wait for this frame while the GPU is behind (see below):
+        // still at most one frame in flight, but the game's CPU work keeps overlapping the GPU
+        // threads when they are the limit (Fortune's Weave: 1 only ran ahead in ~60% of frames,
+        // ~37 ms per frame; the other 40% fell back to fully serialised frames).
         static const int frames_ahead_setting = [] {
             const char* value = std::getenv("EDEN_NX2_FRAMES_AHEAD");
-            return value == nullptr ? -1 : value[0] == '1' ? 1 : 0;
+            return value == nullptr ? -1 : value[0] == '1' ? 1 : value[0] == '2' ? 2 : 0;
         }();
+        const bool always_ahead = frames_ahead_setting == 2;
         // Donkey Kong Bananza's channels wait on each other every frame, so it always ran a frame
         // ahead, where it rewrote memory the GPU thread hadn't read yet (misread commands, then
         // a freeze or crash; rubberbanding while moving). Title 1 runs ahead without either.
         constexpr u64 DonkeyKongBananzaProgramId = 0x040074A01BF12000ULL;
-        int frames_ahead = frames_ahead_setting;
+        int frames_ahead = always_ahead ? 1 : frames_ahead_setting;
         if (frames_ahead == -1 &&
             system.GetApplicationProcessProgramID() == DonkeyKongBananzaProgramId) {
             frames_ahead = 0;
@@ -1760,7 +1765,7 @@ private:
             // commands, then crashes, with a slow GPU). Wait for this frame too then. Not when a
             // suspended channel brought us here: this frame can't finish before the present
             // returns.
-            const bool gpu_behind = frames_ahead == 1 && m_previous_fence_id < 192 &&
+            const bool gpu_behind = frames_ahead == 1 && !always_ahead && m_previous_fence_id < 192 &&
                                     !system.Host1x().GetSyncpointManager().IsReadyGuest(
                                         m_previous_fence_id, m_previous_fence_value);
             WaitForFrame(m_previous_fence_id, m_previous_fence_value);

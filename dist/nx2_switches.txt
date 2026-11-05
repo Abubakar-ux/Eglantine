@@ -18,9 +18,11 @@ EDEN_NX2_FENCE_BATCH=1
 # 90-220 MB/s of buffers CPU never touches, causing heavy mutex contention and dropping FPS by ~38-63%.
 #EDEN_NX2_BUFFER_DOWNLOADS=1
 
-# Paces frame submission 2 frames ahead. Reduces frametime spikes, but adds ~1-2 frames of input latency.
-# Enable only if frame pacing stability is preferred over responsive controls.
-#EDEN_NX2_FRAMES_AHEAD=2
+# Lets the game prepare the next frame while the GPU threads draw this one (~1 frame more input
+# latency). Unset: decided per present. =1: run one frame ahead while the GPU keeps up. =2: run
+# one frame ahead always (still at most one frame in flight). =0: never. Fire Emblem: Fortune's
+# Weave: ~22 fps unset, ~27 fps with =1. Can corrupt games that reuse command memory early.
+#EDEN_NX2_FRAMES_AHEAD=1
 
 # --- Workarounds / Debug ---
 # Terrain/indirect drawing fix for Donkey Kong Bananza: enabled by default. Set to 0 only to leave to GPU.
